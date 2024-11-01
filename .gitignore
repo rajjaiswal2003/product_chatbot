@@ -1,0 +1,4 @@
+.env
+app2.py
+chatbot.ipynb
+chroma_db/
