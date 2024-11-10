@@ -15,6 +15,8 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+load_dotenv()
+
 # Initialize session state
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
@@ -22,16 +24,16 @@ if 'chat_history' not in st.session_state:
 def initialize_chatbot():
     """Initialize the chatbot with the latest OpenAI models"""
     try:
-        load_dotenv()
+        
         
         llm = OpenAI(
-            model="gpt-4-0125-preview",
+            model=os.getenv("gptmodel"),
             temperature=0.1,
             api_key=os.environ["OPENAI_API_KEY"]
         )
         
         embed_model = OpenAIEmbedding(
-            model="text-embedding-3-large",
+            model=os.getenv("embmodel"),
             api_key=os.environ["OPENAI_API_KEY"]
         )
         
@@ -79,19 +81,44 @@ def create_query_engine(index):
         3. Product Comparisons:
            - Start with "Comparing [Product A] vs [Product B]:"
            - Organize by categories:
-             * Performance Differences
-             * Feature Comparison
-             * Technical Specifications
-             * Price Comparison
+            *Performance: [Key performance details]
+            *Features: [Most important feature(s)]
+            *Technical Specifications: [Essential technical details only]
+            *Price: [Price, if available]
            - Use bullet points for clear differentiation
 
-        4. Product Recommendations:
-           - Start with "Recommended: [Product Name]"
-           - List key advantages:
-             * Performance Benefits
-             * Standout Features
-             * Value Proposition
-           - Conclude with clear justification
+        4. which product should user buy :
+        
+           Analysis Matrix:
+            | Criteria          | Product A | Product B | Product C |
+            |-------------------|-----------|-----------|-----------|
+            | Performance       |           |           |           |
+            | Features          |           |           |           |
+            | Price             |           |           |           |
+            | User Rating       |           |           |           |
+
+            Recommended: [Product Name]
+
+            Key Advantages:
+            1. Performance Benefits:
+            • [Benefit 1]
+            • [Benefit 2]
+
+            2. Standout Features:
+            • [Feature 1]
+            • [Feature 2]
+
+            3. Value Proposition:
+            • [Value point 1]
+            • [Value point 2]
+
+            Justification:
+            [Clear explanation of why this product is recommended]
+
+            Alternative Recommendations:
+            - Budget Option: [Product Name]
+            - Premium Option: [Product Name]
+            - Specialized Use: [Product Name]
 
         5. Missing Information:
            - Specify exactly which aspects are unavailable
@@ -111,6 +138,7 @@ def create_query_engine(index):
            - Return ONLY that product's attribute value
            - Format: "[Product Name]: [Attribute Value]"
            Example: "Toyota Fortuner: 500 Nm torque"
+        
 
         Current Question: {query_str}
         
