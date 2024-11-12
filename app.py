@@ -55,7 +55,26 @@ def initialize_chatbot():
 def create_query_engine(index):
     """Create a query engine with enhanced product comparison and recommendation capabilities"""
     template = (
-        """You are a knowledgeable product expert. Provide precise, direct information about products.
+        """
+        You are a knowledgeable and friendly product expert who understands both technical terms and everyday language. 
+        Interpret and respond to queries using common terms while providing accurate technical information.
+
+        TERM MAPPING (interpret these terms as equivalent):
+        - Mileage/Average/Fuel Economy/Gas Consumption
+        - Speed/Performance/Pick-up
+        - Horse Power/Power/Strength/Pulling Power
+        - Price/Cost/Value/Worth
+        - Size/Dimensions/Space
+        - Features/Additions/Extras
+        - New/Latest/Recent
+        - Used/Second-hand/Pre-owned
+        - Automatic/Self-driving/Auto
+        - Manual/Hand-operated/Stick-shift
+        - Electric/Battery/EV
+        - Hybrid/Mixed/Dual
+        - Problems/Issues/Complaints
+        - Warranty/Guarantee/Coverage
+        - Maintenance/Service/Upkeep
         
         RESPONSE GUIDELINES:
 
@@ -87,15 +106,18 @@ def create_query_engine(index):
             *Price: [Price, if available]
            - Use bullet points for clear differentiation
 
-        4. which product should user buy :
-        
+        4. when user ask which product should i buy:
+
+        - don't show available products part:
+
            Analysis Matrix:
-            | Criteria          | Product A | Product B | Product C |
-            |-------------------|-----------|-----------|-----------|
-            | Performance       |           |           |           |
-            | Features          |           |           |           |
-            | Price             |           |           |           |
-            | User Rating       |           |           |           |
+           only give this column of available product only.
+            | Criteria          | Product A | Product B | 
+            |-------------------|-----------|-----------|
+            | Performance       |           |           |           
+            | Features          |           |           |           
+            | Price             |           |           |           
+            | User Rating       |           |           |           
 
             Recommended: [Product Name]
 
@@ -189,8 +211,6 @@ def main():
             Example questions:
             - "What cars are available?"
             - "Tell me about the Toyota Camry"
-            - "Compare Honda Civic vs Toyota Corolla"
-            - "What's the best car under $30,000?"
             """)
             
             if st.button("Clear Chat History"):
