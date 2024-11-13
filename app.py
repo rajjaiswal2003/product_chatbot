@@ -1,4 +1,3 @@
-# streamlit_app.py
 import streamlit as st
 import os
 from dotenv import load_dotenv
@@ -21,41 +20,12 @@ load_dotenv()
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
 
-def initialize_chatbot():
-    """Initialize the chatbot with the latest OpenAI models"""
-    try:
-        
-        
-        llm = OpenAI(
-            model=os.getenv("gptmodel"),
-            temperature=0.1,
-            api_key=os.environ["OPENAI_API_KEY"]
-        )
-        
-        embed_model = OpenAIEmbedding(
-            model=os.getenv("embmodel"),
-            api_key=os.environ["OPENAI_API_KEY"]
-        )
-        
-        Settings.llm = llm
-        Settings.embed_model = embed_model
-        
-        load_client = chromadb.PersistentClient(path="./chroma_db")
-        chroma_collection = load_client.get_collection("quickstart_gpt4")
-        
-        vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
-        index = VectorStoreIndex.from_vector_store(vector_store)
-        
-        return index
-    
-    except Exception as e:
-        logger.error(f"Error initializing chatbot: {str(e)}")
-        raise
+if 'selected_language' not in st.session_state:
+    st.session_state.selected_language = 'English'
 
-def create_query_engine(index):
-    """Create a query engine with enhanced product comparison and recommendation capabilities"""
-    template = (
-        """
+def get_prompt_template(language):
+    """Get the appropriate prompt template based on selected language"""
+    base_template = """
         You are a knowledgeable and friendly product expert who understands both technical terms and everyday language. 
         Interpret and respond to queries using common terms while providing accurate technical information.
 
@@ -160,15 +130,50 @@ def create_query_engine(index):
            - Return ONLY that product's attribute value
            - Format: "[Product Name]: [Attribute Value]"
            Example: "Toyota Fortuner: 500 Nm torque"
-        
 
         Current Question: {query_str}
         
         Context: {context_str}
-        
-        Provide a direct response following the guidelines above: """
-    )
+        """
     
+    # Add language-specific ending
+    if language == 'Hindi':
+        return base_template + '\nProvide a direct and precise response in normal hindi following the guidelines above: """'
+    else:
+        return base_template + '\nProvide a direct and precise response in english following the guidelines above: """'
+
+def initialize_chatbot():
+    """Initialize the chatbot with the latest OpenAI models"""
+    try:
+        llm = OpenAI(
+            model=os.getenv("gptmodel"),
+            temperature=0.1,
+            api_key=os.environ["OPENAI_API_KEY"]
+        )
+        
+        embed_model = OpenAIEmbedding(
+            model=os.getenv("embmodel"),
+            api_key=os.environ["OPENAI_API_KEY"]
+        )
+        
+        Settings.llm = llm
+        Settings.embed_model = embed_model
+        
+        load_client = chromadb.PersistentClient(path="./chroma_db")
+        chroma_collection = load_client.get_collection("quickstart_gpt4")
+        
+        vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
+        index = VectorStoreIndex.from_vector_store(vector_store)
+        
+        return index
+    
+    except Exception as e:
+        logger.error(f"Error initializing chatbot: {str(e)}")
+        raise
+
+def create_query_engine(index, language='English'):
+    """Create a query engine with enhanced product comparison and recommendation capabilities"""
+    template = get_prompt_template(language)
     qa_prompt = PromptTemplate(template)
     
     return index.as_query_engine(
@@ -181,6 +186,32 @@ def get_response_text(response):
     """Extract just the response text from the LlamaIndex response object"""
     return str(response.response)
 
+def display_question_boxes():
+    """Display clickable question boxes in a grid layout"""
+    st.markdown("### Quick Questions")
+    
+    # Define common questions about products
+    questions = [
+        {"title": "Metro Hunter", "query": "answer metro hunter specification in precise?"},
+        {"title": "Retro Hunter", "query": "answer retro hunter specification in precise?"},
+        {"title": "specification of bike", "query": "compare the bikes in precise way?"},
+        {"title": "Compare Products", "query": "compare the bikes in precise way"},
+    ]
+    
+    # Create a 2x3 grid layout
+    cols = st.columns(3)
+    for idx, question in enumerate(questions):
+        with cols[idx % 3]:
+            if st.button(
+                question["title"],
+                key=f"q_{idx}",
+                use_container_width=True,
+                help=question["query"]
+            ):
+                return question["query"]
+    
+    return None
+
 def main():
     st.set_page_config(
         page_title="Smart Product Information System",
@@ -190,12 +221,27 @@ def main():
     
     st.title("Smart Product Information System 🏪")
     
+    # Language selector in sidebar
+    with st.sidebar:
+        st.header("Settings")
+        selected_language = st.selectbox(
+            "Choose Language",
+            ["English", "Hindi"],
+            key="language_selector"
+        )
+        
+        # Update session state and reinitialize query engine if language changes
+        if selected_language != st.session_state.selected_language:
+            st.session_state.selected_language = selected_language
+            if 'query_engine' in st.session_state:
+                del st.session_state.query_engine
+    
     # Initialize system
     try:
         if 'query_engine' not in st.session_state:
             with st.spinner("Initializing system..."):
                 index = initialize_chatbot()
-                st.session_state.query_engine = create_query_engine(index)
+                st.session_state.query_engine = create_query_engine(index, st.session_state.selected_language)
             st.success("System initialized successfully!")
         
         # Sidebar with instructions
@@ -203,10 +249,10 @@ def main():
             st.header("How to Use")
             st.markdown("""
             You can:
-            1. Ask about available products in a category
-            2. Get detailed information about specific products
-            3. Compare multiple products
-            4. Ask for product recommendations
+            1. Click on the question boxes above
+            2. Ask your own questions in the chat
+            3. Get detailed product information
+            4. Compare multiple products
             
             Example questions:
             - "What cars are available?"
@@ -217,6 +263,12 @@ def main():
                 st.session_state.chat_history = []
                 st.rerun()
         
+        # Display question boxes at the top
+        selected_query = display_question_boxes()
+        
+        # Add some space between boxes and chat
+        st.markdown("---")
+        
         # Main chat interface
         for message in st.session_state.chat_history:
             role = message["role"]
@@ -226,6 +278,27 @@ def main():
                 st.chat_message("user").write(content)
             else:
                 st.chat_message("assistant").markdown(content)
+        
+        # Process selected query from question boxes
+        if selected_query:
+            try:
+                with st.spinner("Analyzing your question..."):
+                    response = st.session_state.query_engine.query(selected_query)
+                    response_text = get_response_text(response)
+                
+                # Display the response
+                st.chat_message("user").write(selected_query)
+                st.chat_message("assistant").markdown(response_text)
+                
+                # Update chat history
+                st.session_state.chat_history.extend([
+                    {"role": "user", "content": selected_query},
+                    {"role": "assistant", "content": response_text}
+                ])
+                
+            except Exception as e:
+                st.error(f"Error processing question: {str(e)}")
+                st.info("Please try rephrasing your question.")
         
         # Chat input
         if query := st.chat_input("Ask about products..."):
